@@ -10,9 +10,9 @@ rw = RandomWord()
 ie = inflect.engine()
 
 
-# Writes to a csv file the subject-verb agreement errored sentences from a m2-foratted file
-# Finds the incorrect SVA sentences and writes them with label "I"
-# For each incorrect SVA sentence, makes the given annotations to get the correct SVA sentence; writes with label "C"
+# Writes to a csv file the subject-verb agreement errored sentences from a m2-formatted file
+# Finds the incorrect SVA sentences and writes them with label 0
+# For each incorrect SVA sentence, makes the given annotations to get the correct SVA sentence; writes with label 1
 # Returns a count of how many sentence pairs were extracted
 def extract_sva_sentence_pairs(filename):
     count = 0
@@ -45,7 +45,7 @@ def extract_sva_sentence_pairs(filename):
                 count += 1
 
                 # Write the incorrect version of the sentence
-                fp.write(f'"{incorrect}",I\n')
+                fp.write(f'"{incorrect}",{0}\n')
 
                 # Use the annotaton to get the correct version of the sentence
                 parts = annotations[0].split("|||")
@@ -57,7 +57,7 @@ def extract_sva_sentence_pairs(filename):
                 correct = " ".join(correct)
 
                 # Write the correct version of the sentence
-                fp.write(f'"{correct}",C\n')
+                fp.write(f'"{correct}",{1}\n')
                 
             # Skip to the next sentence
             i = j 
@@ -73,20 +73,20 @@ def extract_sva_sentence_pairs(filename):
 def get_noun():
     noun_s = rw.word(include_parts_of_speech=["noun"]) 
     noun_p = ie.plural(noun_s)
-    return noun_s, noun_p
+    return noun_s.strip().lower(), noun_p.strip().lower()
 
 
 # Returns the singular and plural forms of a random verb
 def get_verb():
     verb_p = rw.word(include_parts_of_speech=["verb"])
     verb_s = ie.plural(verb_p)
-    return verb_s, verb_p
+    return verb_s.strip().lower(), verb_p.strip().lower()
 
 
 # Returns a random adjective or no adjective
 def get_adj():
     if random.random() < 0.4:
-        return rw.word(include_parts_of_speech=["adjective"]) 
+        return rw.word(include_parts_of_speech=["adjective"]).strip().lower() 
     return ""
 
 
@@ -121,6 +121,7 @@ def build_noun_phrase(plural=False, two_nouns=False):
 
     phrase1 = f"the {adj1 + " " if adj1 else ""}{noun1}"
     phrase2 = f"the {adj2 + " " if adj2 else ""}{noun2}"
+
     return f"{phrase1} and {phrase2}"
 
 
@@ -131,6 +132,7 @@ def build_prepositional_phrase():
         "of", "over", "at", "to", "next to", "by", "onto", "into", "up to"
         ]
     np = build_noun_phrase(random.choice([True, False]), random.choice([True, False]))
+
     return f"{random.choice(preps)} {np}"
 
 
@@ -170,11 +172,11 @@ def build_subordinate_clause():
     return f"{connector} the {subj} {verb}"
 
 
-# Returns a grammatically correct, tokenized sentence (punctuation is split into separate words) 
-def build_sentence(subj, verb, obj=None, adv=None, pp=None, rel=None, sub=None, seed=None):
-    # Use a seed to control where the different parts of the sentence go
-    if seed is not None:
-        random.seed(seed)
+# Returns a grammatically correct sentence (in terms of parts of speech)
+# The sentence is tokenized (both words and punctuation characters are tokens) 
+def build_sentence(subj, verb, obj=None, adv=None, pp=None, rel=None, sub=None, local_seed=None):
+    # Use a seed so the sentence can be replicated
+    random.seed(local_seed)
 
     parts = []
 
@@ -261,44 +263,86 @@ def generate_sva_sentence_pair():
     include_sub = random.random() < 0.4
     sub = build_subordinate_clause() if include_sub else ""
 
-    # Generate a random seed so a sentence can be replicated
-    seed = random.randint(0, 2**32 - 1)
+    # Generate a random local seed so a sentence can be replicated
+    local_seed = random.randint(0, 2**32 - 1)
 
     # Build the sentence pairs
     # The difference between the two is only the grammatical number of the verb
-    correct = build_sentence(subj, correct_verb, obj, adv, pp, rel, sub, seed)
-    incorrect = build_sentence(subj, incorrect_verb, obj, adv, pp, rel, sub, seed)
+    correct = build_sentence(subj, correct_verb, obj, adv, pp, rel, sub, local_seed)
+    incorrect = build_sentence(subj, incorrect_verb, obj, adv, pp, rel, sub, local_seed)
 
     return correct, incorrect
 
 
 # Writes to a csv file n pairs of randomly generated SVA sentences (each sentence is the same except for the SVA error) 
-# Incorrect SVA sentences are labeled "I"
-# Correct SVA sentences are labeled "C"
+# Incorrect SVA sentences are labeled 0
+# Correct SVA sentences are labeled 1
 def generate_sva_sentence_pairs(n):
     with open(f"generated_sentences.csv", "w", encoding="utf-8") as fp:
         for i in range(n):
             correct, incorrect = generate_sva_sentence_pair()
-            fp.write(f'"{incorrect}",I\n')
-            fp.write(f'"{correct}",C\n')
+            fp.write(f'"{incorrect}",{0}\n')
+            fp.write(f'"{correct}",{1}\n')
 
 
-# Combines the data from both the extracted and the generated SVA sentence csv files into one json file
-def combine_extracted_generated_csv_to_json(file1="extracted_sentences.csv", file2="generated_sentences.csv"):
-    data = []
-
+# Combines the data from the extracted and generated SVA sentence csv files into three JSON files
+# One JSON file is for training: contains 1/2 of the sentence pairs 
+# One JSON file is for validating: contains one sentence from each pair of another 1/4 of the sentence pairs 
+# One JSON file is for testing: contains one sentence from each pair of the last 1/4 of the sentence pairs
+# The final distribution of kept data: train: 2/3, validation: 1/6, test: 1/6
+def csv_to_json(file1="extracted_sentences.csv", file2="generated_sentences.csv"):
+    # Combine the data into one list
+    all_sentences = []
     for file in [file1, file2]:
         with open(file, "r", encoding="utf-8") as fp:
-            reader = csv.reader(fp, delimiter=",", quotechar='"')
-            for row in reader:
-                sentence, label = row
-                data.append({
-                    "sentence": sentence,
-                    "label": label
-                })
+            reader = csv.reader(fp)
+            all_sentences.extend([row for row in reader])
 
-    with open("test_data.json", "w", encoding="utf-8") as fp:
-        json.dump(data, fp, indent=4)
+    # Keep track of sentence pairs
+    pairs = []
+    for i in range(0, len(all_sentences), 2):
+        s1, l1 = all_sentences[i]
+        s2, l2 = all_sentences[i + 1]
+        pairs.append([{"sentence": s1, "label": int(l1)}, {"sentence": s2, "label": int(l2)}])
+
+    # Shuffle the pairs
+    random.shuffle(pairs)
+
+    # Randomize the order of the sentences in each pair
+    for pair in pairs:
+        if random.random() < 0.5:
+            pair[0], pair[1] = pair[1], pair[0]
+
+    # Split into train (half of pairs)
+    n = len(pairs)
+    train_end = n // 2
+    train_pairs = pairs[:train_end]
+    remaining_pairs = pairs[train_end:]
+
+    # From the remaining pairs, take one sentence from each pair for validation and test
+    remaining_sentences = []
+    for pair in remaining_pairs:
+        remaining_sentences.append(random.choice(pair))
+    random.shuffle(remaining_sentences)
+    valid_end = len(remaining_sentences) // 2
+    valid_sentences = remaining_sentences[:valid_end]
+    test_sentences = remaining_sentences[valid_end:]
+
+    # Flatten train pairs (keep both sentences in each training pair)
+    train_sentences = []
+    for pair in train_pairs:
+        for sentence in pair:
+            train_sentences.append(sentence)
+    
+    # Write data to JSON files
+    with open("train_sva_data.json", "w", encoding="utf-8") as fp:
+        json.dump(train_sentences, fp, indent=4)
+
+    with open("valid_sva_data.json", "w", encoding="utf-8") as fp:
+        json.dump(valid_sentences, fp, indent=4)
+
+    with open("test_sva_data.json", "w", encoding="utf-8") as fp:
+        json.dump(test_sentences, fp, indent=4)
 
 
 # Extracts the sva sentence pairs from the given m2 file (written to a csv file)
@@ -307,7 +351,7 @@ def combine_extracted_generated_csv_to_json(file1="extracted_sentences.csv", fil
 def configure_sva_data(filename):
     n_pairs = extract_sva_sentence_pairs(filename)
     generate_sva_sentence_pairs(n_pairs)
-    combine_extracted_generated_csv_to_json()
+    csv_to_json()
 
 
 if __name__ == "__main__":
