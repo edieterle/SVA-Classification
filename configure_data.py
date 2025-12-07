@@ -17,7 +17,7 @@ ie = inflect.engine()
 lt = language_tool_python.LanguageTool("en-US")
 
 
-# Writes to a JSON file the sentences from a text file that are over 35 words long (complex) and are likely to be grammatically correct
+# Writes to a CSV file and a JSON file the sentences from a text file that are over 35 words long (complex) and are likely to be grammatically correct
 # They are all written with label 1  
 def filter_real_sentences(filename):
     real_sentences = []
@@ -31,20 +31,25 @@ def filter_real_sentences(filename):
     # Get the sentences
     sentences = re.split(r'[.!?]', data)
 
-    # Iterate over each sentence
-    for sentence in sentences:
-        sentence = sentence.strip()
+    with open("./data/real_sentences.csv", "w", encoding="utf-8") as fp:
+        # Iterate over each sentence
+        for sentence in sentences:
+            sentence = sentence.strip()
 
-        # Keep sentences that are over 35 words long and are likely to be grammatically correct
-        if len(sentence.split()) > 35:
-            matches = lt.check(sentence)
-            status = classify_matches(matches)
-            if status == TextStatus.CORRECT:
-                sentence = sentence.replace('"', "'")
-                real_sentences.append({"sentence": sentence, "label": 1})  # all have label 1
+
+            # Keep sentences that are over 35 words long and are likely to be grammatically correct
+            if len(sentence.split()) > 35:
+                matches = lt.check(sentence)
+                status = classify_matches(matches)
+                if status == TextStatus.CORRECT:
+                    sentence = sentence.replace('"', "'")
+                    real_sentences.append({"sentence": sentence, "label": 1})  # all have label 1
+
+                    # Write to CSV file
+                    fp.write(f'"{sentence}",1\n')
 
     # Write to JSON file
-    with open("./data/real_sentences.json", "w", encoding="utf-8") as fp:
+    with open("./data/test_real_sentences.json", "w", encoding="utf-8") as fp:
         json.dump(real_sentences, fp, indent=4)
 
 
