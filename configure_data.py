@@ -1,72 +1,135 @@
+import copy
+import re
 import random
 import csv
 import json
 import inflect
 from wonderwords import RandomWord
+import language_tool_python
+from language_tool_python.utils import classify_matches, TextStatus
 
 
-# Used for word generation and grammatical number (singular/plural) changing
+# Word generation 
 rw = RandomWord()
+# Grammatical number (singular/plural) changing
 ie = inflect.engine()
+# Filtering the 'correct' (grammatically) real sentences
+lt = language_tool_python.LanguageTool("en-US")
 
 
-# Writes to a csv file the subject-verb agreement errored sentences from a m2-formatted file
-# Finds the incorrect SVA sentences and writes them with label 0
-# For each incorrect SVA sentence, makes the given annotations to get the correct SVA sentence; writes with label 1
-# Returns a count of how many sentence pairs were extracted
-def extract_sva_sentence_pairs(filename):
-    count = 0
+# Writes to a JSON file the sentences from a text file that are over 35 words long (complex) and are likely to be grammatically correct
+# They are all written with label 1  
+def filter_real_sentences(filename):
+    real_sentences = []
 
     with open(filename, "r", encoding="utf-8") as fp:
-        lines = []
-        for line in fp:
-            line = line.strip()
-            lines.append(line)
+        data = fp.read()
 
-    fp = open("extracted_sentences.csv", "w", encoding="utf-8")
+    # Delete newlines so each sentence can be put on its own line later
+    data = data.replace("\n", " ")
 
-    i = 0
-    while i < len(lines):
-        line = lines[i]
+    # Get the sentences
+    sentences = re.split(r'[.!?]', data)
 
-        if line.startswith("S"):
-            incorrect = line[2:]  # remove "S " prefix
-            annotations = []
-            j = i + 1
+    # Iterate over each sentence
+    for sentence in sentences:
+        sentence = sentence.strip()
 
-            # Collect annotation lines immediately after the current sentence
-            while j < len(lines) and lines[j].startswith("A"):
-                annotations.append(lines[j])
-                j += 1
+        # Keep sentences that are over 35 words long and are likely to be grammatically correct
+        if len(sentence.split()) > 35:
+            matches = lt.check(sentence)
+            status = classify_matches(matches)
+            if status == TextStatus.CORRECT:
+                sentence = sentence.replace('"', "'")
+                real_sentences.append({"sentence": sentence, "label": 1})  # all have label 1
 
-            # Keep sentences with exactly one annotation and it is SVA
-            if len(annotations) == 1 and "R:VERB:SVA" in annotations[0]:
-                # Keep track of how many sentence pairs are extracted
-                count += 1
+    # Write to JSON file
+    with open("./data/real_sentences.json", "w", encoding="utf-8") as fp:
+        json.dump(real_sentences, fp, indent=4)
 
-                # Write the incorrect version of the sentence
-                fp.write(f'"{incorrect}",{0}\n')
 
-                # Use the annotaton to get the correct version of the sentence
-                parts = annotations[0].split("|||")
-                start = int(parts[0].split()[1])
-                end = int(parts[0].split()[2])
-                replacement = parts[2]
-                tokens = incorrect.split()
-                correct = tokens[:start] + [replacement] + tokens[end:]
-                correct = " ".join(correct)
+# Writes to a CSV file the subject-verb agreement errored sentences from m2 files (the last annotation to be made for each sentence will always be SVA)
+# Finds the incorrect SVA sentences and writes them with label 0
+# For each incorrect SVA sentence, makes the given annotations to get the correct SVA sentence; writes with label 1
+# Returns the average count of how many sentence pairs were extracted from the files
+def extract_sva_sentence_pairs(file_list):
+    # Keep track of total sentence pairs extracted
+    total_count = 0
 
-                # Write the correct version of the sentence
-                fp.write(f'"{correct}",{1}\n')
-                
-            # Skip to the next sentence
-            i = j 
+    # All output goes to one file
+    with open("./data/extracted_sentences.csv", "w", encoding="utf-8") as out_fp:
+        for file in file_list:
+            # Keep track of sentences pairs extracted per file
+            file_count = 0
 
-        else:
-            i += 1
+            with open(file, "r", encoding="utf-8") as fp:
+                lines = fp.readlines()
 
-    fp.close()
-    return count
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+
+                # Find the original errored sentence
+                if line.startswith("S "):
+                    original_sentence = line[2:]  # remove "S "
+                    annotations = []
+                    j = i + 1
+
+                    # Collect annotation lines immediately after the current sentence
+                    while j < len(lines) and lines[j].startswith("A"):
+                        annotations.append(lines[j])
+                        j += 1
+
+                    if annotations:
+                        # The following section was adapted from an algorithm (from the corpus) that applies the annotations in an m2 file
+                        tokens = original_sentence.split()
+                        incorrect_tokens = copy.deepcopy(tokens)
+                        offset = 0
+
+                        for a in annotations[:-1]:  # ignore the last annotation (SVA)
+                            parts = a.split("|||")
+                            span_raw = parts[0].split()
+                            start = int(span_raw[1])
+                            end = int(span_raw[2])
+
+                            replacement_tokens = parts[2].split()
+
+                            # Apply edit with offset compensation
+                            incorrect_tokens[start + offset : end + offset] = replacement_tokens
+
+                            # Update offset
+                            offset = offset - (end - start) + len(replacement_tokens)
+
+                        incorrect_sentence = " ".join(incorrect_tokens)
+
+                        # Apply the last edit (SVA) to produce the "correct" sentence
+                        last = annotations[-1].split("|||")
+                        span_raw = last[0].split()
+                        start = int(span_raw[1])
+                        end = int(span_raw[2])
+                        replacement_tokens = last[2].split()
+                        correct_tokens = incorrect_tokens.copy()
+                        correct_tokens[start : end] = replacement_tokens
+                        correct_sentence = " ".join(correct_tokens)
+
+                        # Write to CSV
+                        incorrect_sentence = incorrect_sentence.replace('"', "'")
+                        correct_sentence = correct_sentence.replace('"', "'")
+                        out_fp.write(f'"{incorrect_sentence}",0\n')
+                        out_fp.write(f'"{correct_sentence}",1\n')
+
+                        file_count += 1
+
+                    # Skip to the next sentence
+                    i = j
+
+                else:
+                    i += 1
+
+            total_count += file_count
+
+    # Return the average number of pairs extracted
+    return total_count / len(file_list)
 
 
 # Returns the singular and plural forms of a random noun
@@ -149,7 +212,7 @@ def build_relative_clause(plural=False):
     if plural:
         verb = verb_p
 
-    return f"that {verb + " " if obj else ""}{obj}"
+    return f"that {verb}{" " + obj if obj else ""}"
 
 
 # Returns a connector word followed by "the", a noun, and a verb
@@ -274,18 +337,18 @@ def generate_sva_sentence_pair():
     return correct, incorrect
 
 
-# Writes to a csv file n pairs of randomly generated SVA sentences (each sentence is the same except for the SVA error) 
+# Writes to a CSV file n pairs of randomly generated SVA sentences (each sentence is the same except for the SVA error) 
 # Incorrect SVA sentences are labeled 0
 # Correct SVA sentences are labeled 1
 def generate_sva_sentence_pairs(n):
-    with open(f"generated_sentences.csv", "w", encoding="utf-8") as fp:
+    with open("./data/generated_sentences.csv", "w", encoding="utf-8") as fp:
         for i in range(n):
             correct, incorrect = generate_sva_sentence_pair()
             fp.write(f'"{incorrect}",{0}\n')
             fp.write(f'"{correct}",{1}\n')
 
 
-# Combines the data from the extracted and generated SVA sentence csv files into three JSON files
+# Shuffles and combines the data from the extracted and generated SVA sentence CSV files into three JSON files
 # One JSON file is for training: contains 1/2 of the sentence pairs 
 # One JSON file is for validating: contains one sentence from each pair of another 1/4 of the sentence pairs 
 # One JSON file is for testing: contains one sentence from each pair of the last 1/4 of the sentence pairs
@@ -293,7 +356,7 @@ def generate_sva_sentence_pairs(n):
 def csv_to_json():
     # Combine the data into one list
     all_sentences = []
-    for file in ["extracted_sentences.csv", "generated_sentences.csv"]:
+    for file in ["./data/extracted_sentences.csv", "./data/generated_sentences.csv"]:
         with open(file, "r", encoding="utf-8") as fp:
             reader = csv.reader(fp)
             all_sentences.extend([row for row in reader])
@@ -335,22 +398,34 @@ def csv_to_json():
             train_sentences.append(sentence)
     
     # Write data to JSON files
-    with open("train_sva_data.json", "w", encoding="utf-8") as fp:
+    with open("./data/train_sva_data.json", "w", encoding="utf-8") as fp:
         json.dump(train_sentences, fp, indent=4)
 
-    with open("valid_sva_data.json", "w", encoding="utf-8") as fp:
+    with open("./data/valid_sva_data.json", "w", encoding="utf-8") as fp:
         json.dump(valid_sentences, fp, indent=4)
 
-    with open("test_sva_data.json", "w", encoding="utf-8") as fp:
+    with open("./data/test_sva_data.json", "w", encoding="utf-8") as fp:
         json.dump(test_sentences, fp, indent=4)
 
 
-# Extracts the sva sentence pairs from the given m2 file (written to a csv file)
-# Generates random sva sentence pairs (written to a csv file); the number of generated pairs equals the number of extracted pairs
-# Combines the two csv files into one json file 
-def configure_sva_data():
-    filename = "annotated_sva.m2"
-    n_pairs = extract_sva_sentence_pairs(filename)
-    generate_sva_sentence_pairs(n_pairs)
+# Extracts the SVA sentence pairs from the given m2 files (written to a CSV file)
+# Generates random SVA sentence pairs (written to a CSV file); the number of generated pairs equals the average number of extracted pairs from the m2 files
+# Combines the two CSV files into json files for training, validating, and testing
+def configure_data():
+    # SVA error and annotation corpus
+    m2_files = ["./data/fce.m2", "./data/lang8.m2", "./data/nucle.m2", "./data/wi_locness.m2"]
+
+    # Extract the correct and incorrect sentences from the corpus and record the average number of pairs for each file
+    pair_avg = extract_sva_sentence_pairs(m2_files)
+
+    # Generate pair_avg synthetic pairs of correct and incorrect SVA sentences
+    generate_sva_sentence_pairs(int(pair_avg))
+
+    # Convert outputs from previous functions to shuffled train, validate, and test JSON files
     csv_to_json()
-    extract_sva_sentence_pairs(filename)
+
+    # Create one last test JSON file with complex real-world sentences (all labeled 1) 
+    filter_real_sentences("./data/pg8448.txt")
+
+
+configure_data()

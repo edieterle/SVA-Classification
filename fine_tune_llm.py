@@ -1,3 +1,7 @@
+# TODO:
+# Retrain once configure_data is ready
+
+
 import json
 import os
 import numpy as np
@@ -8,11 +12,10 @@ from datasets import Dataset, DatasetDict
 from transformers import (AutoTokenizer, AutoModelForSequenceClassification, TrainingArguments, Trainer)
 
 
-# Loads model and tokenizer based on model_name and num_labels for classification
-# The model_name should be loadable from the Transformers library
-def load_model_and_tokenizer(model_name, num_labels):
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
+# Loads model and tokenizer for classification
+def load_model_and_tokenizer():
+    tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+    model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=2)
     return tokenizer, model
 
 
@@ -165,7 +168,7 @@ def create_llm():
     dataset = convert_df_to_dataset(pl_train, pl_valid)
 
     # Load model and tokenizer
-    tokenizer, model = load_model_and_tokenizer("distilbert-base-uncased", 2)
+    tokenizer, model = load_model_and_tokenizer()
 
     # Tokenize the created dataset
     tokenized_datasets = dataset.map(lambda x: tokenize_function(tokenizer, x), batched=True)
@@ -173,7 +176,7 @@ def create_llm():
     valid_dataset = tokenized_datasets["validation"]
 
     # Train the model
-    train_model(model, train_dataset, valid_dataset, epoch, "./models/llms", "best_llm")
+    train_model(model, train_dataset, valid_dataset, epoch, "./llm", "best_llm")
     
     # Mini sample output
     pos_sentence = "The duck walks up to the lemonade stand ."  # expected: 1
@@ -185,6 +188,6 @@ def create_llm():
 # Tests the created LLM
 def test_created_llm():
     pl_test = pl.read_json("./data/test_sva_data.json")
-    model_dir = "./models/llms/best_llm"
+    model_dir = "./llm/best_llm"
     test_accuracy = test("distilbert-base-uncased", model_dir, pl_test)
     return test_accuracy
