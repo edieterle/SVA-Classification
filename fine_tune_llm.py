@@ -1,7 +1,3 @@
-# TODO:
-# Retrain once configure_data is ready
-
-
 import json
 import os
 import numpy as np
@@ -191,3 +187,5 @@ def test_created_llm():
     model_dir = "./llm/best_llm"
     test_accuracy = test("distilbert-base-uncased", model_dir, pl_test)
     return test_accuracy
+
+create_llm()
