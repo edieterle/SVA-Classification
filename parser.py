@@ -1,19 +1,15 @@
-# TODO:
-# Add a way to handle multiple verbs for one subject
-# Make sure main verbs are identified for each clause 
-# Clean up and make this my own
-# Check singular/plural of output dicts for classifying each sentence
-
-
+from collections import defaultdict
 import os
 import json
-import csv
 import subprocess
 import sys
 import spacy
+import lemminflect
 import benepar
+import inflect
 
 
+# Loads model for classification
 def load_model():
     # Download spaCy model if missing
     spacy_model = "en_core_web_md"
@@ -39,82 +35,156 @@ def load_model():
     return nlp
 
 
+# Return a list of subjects (including coordinated) for a verb
 def subjects_for_verb(verb):
-    """Return a list of subjects (including coordinated) for a given verb token."""
     subjects = []
-    for child in verb.children:
-        if child.dep_ in ("nsubj", "nsubjpass", "csubj"):
-            subjects.append(child.text)
-            # Coordinated subjects (e.g., "Alice and Bob")
-            subjects.extend([c.text for c in child.conjuncts])
-    return subjects
+
+    # Traverse all descendants of the verb to find subjects
+    for desc in verb.subtree:
+        if desc.dep_ in ("nsubj", "nsubjpass", "csubj"):
+            subjects.append(desc.text)
+            subjects.extend([c.text for c in desc.conjuncts])
+
+    # Deduplicate
+    return list(set(subjects))
 
 
-def get_main_verb(verb):
-    """Return auxiliary if present, otherwise return the main verb."""
-    auxiliaries = [
-        child.text
-        for child in verb.children
-        if child.dep_ in ("aux", "auxpass")
-    ]
-    if auxiliaries:
-        # If multiple auxiliaries, return them joined
-        return " ".join(auxiliaries)
-    else:
-        return verb.text
-
-
+# Extracts auxiliaries (or main verbs if no auxiliaries) and their corresponding subjects
+# Allows multiple occurrences of the same verb with different subjects
 def parse_sentence(nlp, sentence):
     doc = nlp(sentence)
     results = []
 
     for sent in doc.sents:
-        verb_subject_map = {}
+        verb_subject_map = defaultdict(list)  # key: verb/aux, value: list of subject lists
+        verbs = [token for token in sent if token.pos_ == "VERB"]
+        for verb in verbs:
+            subjects = subjects_for_verb(verb)
+            if subjects:
+                auxs = [child.text for child in verb.children if child.dep_ in ("aux", "auxpass")]
+                if auxs:
+                    for aux in auxs:
+                        verb_subject_map[aux].append(subjects)
+                else:
+                    verb_subject_map[verb.text].append(subjects)
 
-        for verb in sent:
-            if verb.pos_ == "VERB" and verb.dep_ == "ROOT":
-                subjects = subjects_for_verb(verb)
-                if subjects:
-                    main_verb = get_main_verb(verb)
-                    verb_subject_map[main_verb] = subjects
-
-        results.append({
-            "sentence": sentence,
-            "verb_subject_map": verb_subject_map,
-        })
+        # Convert defaultdict to normal dict for output
+        results.append({"sentence": sentence, "verb_subject_map": dict(verb_subject_map)})
 
     return results
 
 
-def parse_json_file(nlp, json_file, output_csv):
-    """Parse all sentences in a JSON file and save results to CSV."""
-    with open(json_file, "r", encoding="utf-8") as f:
-        data = json.load(f)
 
-    all_results = []
+# Predicts subject-verb agreement in a given sentence mapping
+# Returns 1 if the sentence is good, 0 if there is an SVA error, or -1 if the sentence could not be parsed (empty mapping input)
+def predict_sva(nlp, verb_subject_map):
+    ie = inflect.engine()
+
+    # The sentence could not be parsed
+    if not verb_subject_map:
+        return -1 
+
+    for verb, subject_lists in verb_subject_map.items():
+        for subjects in subject_lists:
+            # Get grammatical number of the verb
+            singular_verb = False
+
+            doc = nlp(verb)
+            token = doc[0]  # verb
+
+            # Detect tense
+            morph = token.morph
+            is_past = "Tense=Past" in morph
+            is_present = "Tense=Pres" in morph
+
+            if is_present:
+                third_sg = token._.inflect("VBZ")
+                if verb == third_sg:
+                    singular_verb = True
+            elif is_past:
+                # Past form is the same for all persons
+                past = token._.inflect("VBD")
+                if verb == past:
+                    singular_verb = True
+
+            # Get grammatical number of the subjects
+            singular_subject = False
+            
+            if len(subjects) == 1:  # if there are more than one coordinated nouns, then the subject is plural
+                subj = subjects[0]
+                if ie.singular_noun(subj) == False:
+                    singular_subject = True
+
+            # The grammatical number of the verb and one of the subjects does not match: SVA error
+            if singular_verb != singular_subject:
+                return 0
+
+    # No SVA errors found
+    return 1 
+
+
+# Calculates accuracy from the given ground truth and predicted labels
+# Also returns the distribution of sentences that could not be parsed
+def get_accuracy(list_gt, list_pred):
+    total_predictions = 0
+    correct_predictions = 0
+    no_predictions = 0
+
+    for i in range(len(list_pred)):
+        if list_pred[i] == -1:
+            no_predictions += 1
+        else:
+            total_predictions += 1
+        if list_pred[i] == list_gt[i]:
+            correct_predictions += 1
+
+    accuracy = correct_predictions / total_predictions
+    cut = no_predictions / total_predictions
+
+    return accuracy, cut 
+
+
+# Tests the model
+def test(nlp, json_file):
+    with open(json_file, "r", encoding="utf-8") as fp:
+        data = json.load(fp)
+
+    list_gt = []
+    list_pred = []
 
     for entry in data:
         sentence = entry["sentence"]
         label = entry.get("label", "")
+
+        # Parse the sentence to get verb_subject_map
         sentence_results = parse_sentence(nlp, sentence)
+
+        # Combine all verb_subject_maps in case there are multiple sentences returned
+        verb_subject_map = defaultdict(list)
         for res in sentence_results:
-            res["label"] = label
-            # Convert verb-subject mapping to a string for CSV
-            res["verb_subject_map"] = "; ".join(
-                [f"{v}: {', '.join(subjs)}" for v, subjs in res["verb_subject_map"].items()]
-            )
-            all_results.append(res)
+            for verb, subject_lists in res["verb_subject_map"].items():
+                verb_subject_map[verb].extend(subject_lists)
 
-    # Save CSV
-    with open(output_csv, "w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["sentence", "label", "verb_subject_map"])
-        writer.writeheader()
-        for row in all_results:
-            writer.writerow(row)
+        # Predict SVA using the verb_subject_map
+        prediction = predict_sva(nlp, dict(verb_subject_map))
 
-    print(f"✅ Done! Results saved to '{output_csv}'")
+        list_gt.append(label)
+        list_pred.append(prediction)
+
+    return get_accuracy(list_gt, list_pred)
 
 
-if __name__ == "__main__":
+# Creates a parser model for SVA classification
+def create_parser():
     nlp = load_model()
-    parse_json_file(nlp, "./data/test_sva_data.json", "parsed_results.csv")
+    return nlp
+
+
+# Tests the created parser model on the testing data from the extracted and generated SVA sentences
+# Also separately tests on the complex, real-world sentences
+def test_created_parser(nlp):
+    test_accuracies = []
+    for file in ["./data/test_sva_data.json", "./data/test_real_sentences.json"]:
+        test_accuracy, no_test = test(nlp, file)
+        test_accuracies.append([round(test_accuracy, 3), round(no_test), 3])
+    return test_accuracies

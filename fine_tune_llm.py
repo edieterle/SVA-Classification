@@ -84,6 +84,7 @@ def load_trained_model(model_dir, model_name):
 
 
 # Predicts subject-verb agreement in a given sentence
+# Returns 1 if the sentence is good or 0 if there is an SVA error
 def predict_sva(tokenizer, loaded_model, sentence):
     # Tokenize the input text
     inputs = tokenizer(sentence, return_tensors="pt", padding=True, truncation=True).to(loaded_model.device)
@@ -180,12 +181,22 @@ def create_llm():
     print(f"Sentence: '{pos_sentence}' -> SVA: {predict_sva(tokenizer, model, pos_sentence)}")
     print(f"Sentence: '{neg_sentence}' -> SVA: {predict_sva(tokenizer, model, neg_sentence)}")
 
-
-# Tests the created LLM
-def test_created_llm():
-    pl_test = pl.read_json("./data/test_sva_data.json")
     model_dir = "./llm/best_llm"
-    test_accuracy = test("distilbert-base-uncased", model_dir, pl_test)
-    return test_accuracy
+    return model_dir
 
-create_llm()
+
+# Tests the created LLM on the testing data from the extracted and generated SVA sentences
+# Also separately tests on the complex, real-world sentences
+def test_created_llm(model_dir="./llm/best_llm"):
+    test_accuracies = []
+    for file in ["./data/test_sva_data.json", "./data/test_real_sentences.json"]:
+        pl_test = pl.read_json(file)
+        model_dir = model_dir
+        test_accuracy = round(test("distilbert-base-uncased", model_dir, pl_test), 3)
+        test_accuracies.append(test_accuracy)
+    return test_accuracies
+
+
+test_accuracies = test_created_llm()
+print(test_accuracies[0])
+print(test_accuracies[1])
