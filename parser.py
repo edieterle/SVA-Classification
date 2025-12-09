@@ -139,9 +139,9 @@ def get_accuracy(list_gt, list_pred):
             correct_predictions += 1
 
     accuracy = correct_predictions / total_predictions
-    cut = no_predictions / total_predictions
+    not_parsed = no_predictions / total_predictions
 
-    return accuracy, cut 
+    return accuracy, not_parsed 
 
 
 # Tests the model
@@ -185,6 +185,6 @@ def create_parser():
 def test_created_parser(nlp):
     test_accuracies = []
     for file in ["./data/test_sva_data.json", "./data/test_real_sentences.json"]:
-        test_accuracy, no_test = test(nlp, file)
-        test_accuracies.append([round(test_accuracy, 3), round(no_test), 3])
+        test_accuracy, not_parsed = test(nlp, file)
+        test_accuracies.append([round(test_accuracy, 3), round(not_parsed, 3)])
     return test_accuracies

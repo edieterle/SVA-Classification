@@ -345,6 +345,7 @@ def generate_sva_sentence_pair():
 # Writes to a CSV file n pairs of randomly generated SVA sentences (each sentence is the same except for the SVA error) 
 # Incorrect SVA sentences are labeled 0
 # Correct SVA sentences are labeled 1
+# Sentence verbs are 3rd person, present tense
 def generate_sva_sentence_pairs(n):
     with open("./data/generated_sentences.csv", "w", encoding="utf-8") as fp:
         for i in range(n):
@@ -431,6 +432,3 @@ def configure_data():
 
     # Create one last test JSON file with complex real-world sentences (all labeled 1) 
     filter_real_sentences("./data/pg8448.txt")
-
-
-configure_data()

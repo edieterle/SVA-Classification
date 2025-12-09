@@ -196,7 +196,4 @@ def test_created_llm(model_dir="./llm/best_llm"):
         test_accuracies.append(test_accuracy)
     return test_accuracies
 
-
-test_accuracies = test_created_llm()
-print(test_accuracies[0])
-print(test_accuracies[1])
+test_created_llm("./llm/best_llm")
