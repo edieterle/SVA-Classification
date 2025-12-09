@@ -1,8 +1,4 @@
 # SVA-Classification
-Evan Dieterle
-
-
-
 
 Results:
   Extracted/Generated:
@@ -13,4 +9,3 @@ Results:
     LLM:               0.789
     Parser:            0.139
       Couldn't parse:  0.016
-      
