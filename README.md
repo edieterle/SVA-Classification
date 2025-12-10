@@ -24,7 +24,7 @@ this process consists of pairs of sentences. One sentence in a pair is grammatic
 other is exactly the same, except that one of its verbs has a different grammatical number, so the
 sentence has an SVA error (0). Validation data, which consists of one randomly chosen sentence
 from each pair (distinct pairs from the training data) was also used during fine-tuning. This code
-for the LLM can be found in f inetunellm.py.
+for the LLM can be found in fine_tune_llm.py.
 
 The second implemented SVA classification model (Parser) uses pattern recognition and statistics to 
 first identify grammatical structures. Then it uses grammar rules and logic to predict correctness. It 
@@ -85,7 +85,7 @@ data configuration can be found in conf iguredata.py.
 
 An updated version of Python and a virtual environment called /venv are required to run this
 project. Dependencies to install can be found in requirements.txt. The Benepar model needs
-to be installed separately, so it is automatically installed and saved in /venv/nltkdata when the
+to be installed separately, so it is automatically installed and saved in /venv/nltk_data when the
 Parser is created.
 
 ## 4 Instructions
@@ -98,7 +98,7 @@ results for each model on each test suite will be printed to the terminal.
 Note that configuring data and creating and testing the models may take a long time (5+ hours)
 depending on the machine. The main script will make some optimizations. If the data is already
 configured (the correct JSON files exist in /data), it will skip this step. If the LLM is already
-created (the correct LLM files exist in /llm/bestllm), it will skip this step. The rest is executed
+created (the correct LLM files exist in /llm/best_llm), it will skip this step. The rest is executed
 during runtime.
 
 ## 5 Results
