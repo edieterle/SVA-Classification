@@ -5,7 +5,7 @@ import pandas as pd
 import polars as pl
 import torch
 from datasets import Dataset, DatasetDict
-from transformers import (AutoTokenizer, AutoModelForSequenceClassification, TrainingArguments, Trainer)
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, TrainingArguments, Trainer
 
 
 # Loads model and tokenizer for classification
