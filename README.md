@@ -46,12 +46,13 @@ data is written in M2 files, where each sentence is followed by a series of vari
 be programmatically followed to produce the corresponding correct sentence. This is perfect for
 training and testing models on correct and incorrect pairs of sentences. Versions (where SVA
 correction is the last edit to be made for each sentence) of the FCE, Lang-8 Corpus of Learner
-English, NUCLE, and W&I+LOCNESS datasets can be found in /data.
+English, NUCLE, and W&I+LOCNESS datasets can be found in data/.
 
 Another corpus used is the text Honor Edgeworth; Or, Ottawa’s Present Tense by Vera from
 the Project Gutenberg site [2]. This is chosen because it contains complex present tense sentences.
 These are perfect for testing the models on more “real-world” sentences than the ones in the BEA
-Shared Task. The text can be found in /data/pg 8448 .txt.
+Shared Task. The text can be found in data/pg8448.txt.
+
 Additionally, ChatGPT (GPT-5.1 model) [3] was used for finding corpora, identifying useful
 libraries, and helping write efficient code.
 
@@ -83,22 +84,22 @@ data configuration can be found in conf iguredata.py.
 
 ## 3 Required Software
 
-An updated version of Python and a virtual environment called /venv are required to run this
+An updated version of Python and a virtual environment called venv/ are required to run this
 project. Dependencies to install can be found in requirements.txt. The Benepar model needs
-to be installed separately, so it is automatically installed and saved in /venv/nltk_data when the
+to be installed separately, so it is automatically installed and saved in venv/nltk_data when the
 Parser is created.
 
 ## 4 Instructions
 
 Download the files from the GitHub repository into the same local directory. Create and activate a
-virtual environment called /venv. Install the dependencies from requirements.txt. Run main.py,
+virtual environment called venv/. Install the dependencies from requirements.txt. Run main.py,
 which will configure the data, create the LLM and Parser, and test the LLM and Parser. The
 results for each model on each test suite will be printed to the terminal.
 
 Note that configuring data and creating and testing the models may take a long time (5+ hours)
 depending on the machine. The main script will make some optimizations. If the data is already
-configured (the correct JSON files exist in /data), it will skip this step. If the LLM is already
-created (the correct LLM files exist in /llm/best_llm), it will skip this step. The rest is executed
+configured (the correct JSON files exist in data/), it will skip this step. If the LLM is already
+created (the correct LLM files exist in llm/best_llm), it will skip this step. The rest is executed
 during runtime.
 
 ## 5 Results

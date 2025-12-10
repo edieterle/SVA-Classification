@@ -195,5 +195,3 @@ def test_created_llm(model_dir="./llm/best_llm"):
         test_accuracy = round(test("distilbert-base-uncased", model_dir, pl_test), 3)
         test_accuracies.append(test_accuracy)
     return test_accuracies
-
-test_created_llm("./llm/best_llm")
