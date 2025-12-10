@@ -49,11 +49,11 @@ def filter_real_sentences(filename):
                     fp.write(f'"{sentence}",1\n')
 
     # Write to JSON file
-    with open("./data/test_real_sentences.json", "w", encoding="utf-8") as fp:
+    with open("./data/test_real_data.json", "w", encoding="utf-8") as fp:
         json.dump(real_sentences, fp, indent=4)
 
 
-# Writes to a CSV file the subject-verb agreement errored sentences from m2 files (the last annotation to be made for each sentence will always be SVA)
+# Writes to a CSV file the subject-verb agreement errored sentences from M2 files (the last annotation to be made for each sentence will always be SVA)
 # Finds the incorrect SVA sentences and writes them with label 0
 # For each incorrect SVA sentence, makes the given annotations to get the correct SVA sentence; writes with label 1
 # Returns the average count of how many sentence pairs were extracted from the files
@@ -86,7 +86,7 @@ def extract_sva_sentence_pairs(file_list):
                         j += 1
 
                     if annotations:
-                        # The following section was adapted from an algorithm (from the corpus) that applies the annotations in an m2 file
+                        # The following section was adapted from an algorithm (from the corpus) that applies the annotations in an M2 file
                         tokens = original_sentence.split()
                         incorrect_tokens = copy.deepcopy(tokens)
                         offset = 0
@@ -414,8 +414,8 @@ def csv_to_json():
         json.dump(test_sentences, fp, indent=4)
 
 
-# Extracts the SVA sentence pairs from the given m2 files (written to a CSV file)
-# Generates random SVA sentence pairs (written to a CSV file); the number of generated pairs equals the average number of extracted pairs from the m2 files
+# Extracts the SVA sentence pairs from the given M2 files (written to a CSV file)
+# Generates random SVA sentence pairs (written to a CSV file); the number of generated pairs equals the average number of extracted pairs from the M2 files
 # Combines the two CSV files into json files for training, validating, and testing
 def configure_data():
     # SVA error and annotation corpus

@@ -1,2 +1,9 @@
 __pycache__/
+data/extracted_sentences.csv
+data/generated_sentences.csv
+data/real_sentences.csv
+data/test_real_data.json
+data/test_sva_data.json
+data/train_sva_data.json
+data/valid_sva_data.json
 llm/

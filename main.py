@@ -12,7 +12,7 @@ print()
 
 def main():
     configured_data = [
-        "./data/test_real_sentences.json", "./data/test_sva_data.json", 
+        "./data/test_real_data.json", "./data/test_sva_data.json", 
         "./data/train_sva_data.json", "./data/valid_sva_data.json"
         ]
     all_exist = True

@@ -189,7 +189,7 @@ def create_llm():
 # Also separately tests on the complex, real-world sentences
 def test_created_llm(model_dir="./llm/best_llm"):
     test_accuracies = []
-    for file in ["./data/test_sva_data.json", "./data/test_real_sentences.json"]:
+    for file in ["./data/test_sva_data.json", "./data/test_real_data.json"]:
         pl_test = pl.read_json(file)
         model_dir = model_dir
         test_accuracy = round(test("distilbert-base-uncased", model_dir, pl_test), 3)

@@ -184,7 +184,7 @@ def create_parser():
 # Also separately tests on the complex, real-world sentences
 def test_created_parser(nlp):
     test_accuracies = []
-    for file in ["./data/test_sva_data.json", "./data/test_real_sentences.json"]:
+    for file in ["./data/test_sva_data.json", "./data/test_real_data.json"]:
         test_accuracy, not_parsed = test(nlp, file)
         test_accuracies.append([round(test_accuracy, 3), round(not_parsed, 3)])
     return test_accuracies
