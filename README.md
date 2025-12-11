@@ -105,10 +105,11 @@ during runtime.
 
 ## 5 Results
 
-For the extracted and generated sentence test suite, the LLM had an accuracy of 91.2%. The Parser
-had an accuracy of 61.6% on parsed sentences, but could not parse 20.6% of the total sentences.
-For the real-world sentence test suite, the LLM had an accuracy of 78.9%. The Parser had an
-accuracy of 13.9% on parsed sentences, but could not parse 1.60% of the total sentences.
+These results were attained using a seed of 42 before the LLM was fine-tuned. For the extracted and generated sentence test suite, 
+the LLM had an accuracy of 91.2%. The Parser had an accuracy of 61.6% on parsed sentences, 
+but could not parse 20.6% of the total sentences. For the real-world sentence test suite, the 
+LLM had an accuracy of 61.5%. The Parser had an accuracy of 13.9% on parsed sentences, 
+but could not parse 1.60% of the total sentences.
 
 ## 6 Analysis
 
@@ -117,11 +118,11 @@ likely because the LLM was trained and validated on sentences similar to the one
 models that the Parser wraps were trained with different data entirely. These results hint that the
 LLM may be overfitted, and that the Parser logic does not cover common edge cases.
 
-For the second test suite, the LLM (78.9%) performed significantly better than the Parser
+For the second test suite, the LLM (61.5%) performed significantly better than the Parser
 (13.9%). This is likely because the test sentences were more complex. The Parser had a hard time
 identifying the verbs and corresponding subjects across long sentences with multiple clauses. The
-LLM performed well, as it identified patterns in data never seen before without having to parse.
-The results suggest that the LLM is not overfitted.
+LLM did not perform the best, but it identified some patterns in data never seen before without having to parse.
+The results still suggest that the LLM may be overfitted.
 
 Note that the Parser could not parse some sentences in the first (20.6%) and second (1.60%) test
 suites. The number is much higher in the first suite likely because many of the test sentences were
