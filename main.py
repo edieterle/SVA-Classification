@@ -1,7 +1,9 @@
 print("This may take a while...")
 print()
 
+
 print("Preparing dependencies...")
+import sys
 from pathlib import Path
 from configure_data import configure_data
 from fine_tune_llm import create_llm, test_created_llm
@@ -10,7 +12,7 @@ print("Dependencies ready!")
 print()
 
 
-def main():
+def main(seed):
     configured_data = [
         "./data/test_real_data.json", "./data/test_sva_data.json", 
         "./data/train_sva_data.json", "./data/valid_sva_data.json"
@@ -23,7 +25,7 @@ def main():
     # Configure the data if it has not been configured yet
     if not all_exist:
         print("Configuring data...")
-        configure_data()
+        configure_data(seed)
         print("Data ready!")
     else:
         print("Data already configured!")
@@ -84,4 +86,13 @@ def main():
     
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) not in (1, 2):
+        print("Usage: main.py")
+        print("Usage: main.py <seed>")
+        sys.exit(1)
+
+    seed = None
+    if len(sys.argv) == 2:
+        seed = sys.argv[1]
+        
+    main(seed)

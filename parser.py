@@ -1,3 +1,5 @@
+# TODO: test with punctuation
+
 from collections import defaultdict
 import os
 import json

@@ -11,8 +11,13 @@ from language_tool_python.utils import classify_matches, TextStatus
 
 # Word generation 
 rw = RandomWord()
+all_nouns = rw.filter(include_parts_of_speech=["noun"])
+all_verbs = rw.filter(include_parts_of_speech=["verb"])
+all_adjectives = rw.filter(include_parts_of_speech=["adjective"])
+
 # Grammatical number (singular/plural) changing
 ie = inflect.engine()
+
 # Filtering the 'correct' (grammatically) real sentences
 lt = language_tool_python.LanguageTool("en-US")
 
@@ -139,14 +144,14 @@ def extract_sva_sentence_pairs(file_list):
 
 # Returns the singular and plural forms of a random noun
 def get_noun():
-    noun_s = rw.word(include_parts_of_speech=["noun"]) 
+    noun_s = random.choice(all_nouns)
     noun_p = ie.plural(noun_s)
     return noun_s.strip().lower(), noun_p.strip().lower()
 
 
 # Returns the singular and plural forms of a random verb
 def get_verb():
-    verb_p = rw.word(include_parts_of_speech=["verb"])
+    verb_p = random.choice(all_verbs)
     verb_s = ie.plural(verb_p)
     return verb_s.strip().lower(), verb_p.strip().lower()
 
@@ -154,7 +159,8 @@ def get_verb():
 # Returns a random adjective or no adjective
 def get_adj():
     if random.random() < 0.4:
-        return rw.word(include_parts_of_speech=["adjective"]).strip().lower() 
+        adj = random.choice(all_adjectives)
+        return adj.strip().lower() 
     return ""
 
 
@@ -243,13 +249,14 @@ def build_subordinate_clause():
 # Returns a grammatically correct sentence (in terms of parts of speech)
 # The sentence is tokenized (both words and punctuation characters are tokens) 
 def build_sentence(subj, verb, obj=None, adv=None, pp=None, rel=None, sub=None, local_seed=None):
-    # Use a seed so the sentence can be replicated
-    random.seed(local_seed)
+    # Use a local seed so the sentence can be replicated
+    local_rng = random.Random()
+    local_rng.seed(local_seed)
 
     parts = []
 
     # Subordinate clause might be first
-    if sub and random.random() < 0.4:
+    if sub and local_rng.random() < 0.4:
         parts.append(f"{sub} ,")  # the comma is its own token
 
     # Subject (determinant and noun)
@@ -260,7 +267,7 @@ def build_sentence(subj, verb, obj=None, adv=None, pp=None, rel=None, sub=None, 
         parts.append(rel)
 
     # Adverb might go before verb
-    if adv and random.random() < 0.5:
+    if adv and local_rng.random() < 0.5:
         parts.append(adv)
 
     # Verb
@@ -417,7 +424,10 @@ def csv_to_json():
 # Extracts the SVA sentence pairs from the given M2 files (written to a CSV file)
 # Generates random SVA sentence pairs (written to a CSV file); the number of generated pairs equals the average number of extracted pairs from the M2 files
 # Combines the two CSV files into json files for training, validating, and testing
-def configure_data():
+def configure_data(seed=None):
+    # Use a seed so the generated data can be replicated
+    random.seed(seed)
+
     # SVA error and annotation corpus
     m2_files = ["./data/fce.m2", "./data/lang8.m2", "./data/nucle.m2", "./data/wi_locness.m2"]
 
