@@ -93,7 +93,8 @@ Parser is created.
 
 Download the files from the GitHub repository into the same local directory. Create and activate a
 virtual environment called venv/. Install the dependencies from requirements.txt. Run main.py,
-which will configure the data, create the LLM and Parser, and test the LLM and Parser. The
+which will configure the data, create the LLM and Parser, and test the LLM and Parser. Optionally include
+a seed as an argument on the command line to replicate experiments. The
 results for each model on each test suite will be printed to the terminal.
 
 Note that configuring data and creating and testing the models may take a long time (5+ hours)
@@ -104,14 +105,14 @@ during runtime.
 
 ## 5 Results
 
-For the extracted and generated sentence test suite, the LLM had an accuracy of 89.9%. The Parser
-had an accuracy of 61.0% on parsed sentences, but could not parse 19.8% of the total sentences.
+For the extracted and generated sentence test suite, the LLM had an accuracy of 91.2%. The Parser
+had an accuracy of 61.6% on parsed sentences, but could not parse 20.6% of the total sentences.
 For the real-world sentence test suite, the LLM had an accuracy of 78.9%. The Parser had an
 accuracy of 13.9% on parsed sentences, but could not parse 1.60% of the total sentences.
 
 ## 6 Analysis
 
-For the first test suite, the LLM (89.9%) performed much better than the Parser (61.0%). This is
+For the first test suite, the LLM (91.2%) performed much better than the Parser (61.6%). This is
 likely because the LLM was trained and validated on sentences similar to the ones in the test. The
 models that the Parser wraps were trained with different data entirely. These results hint that the
 LLM may be overfitted, and that the Parser logic does not cover common edge cases.
@@ -122,7 +123,7 @@ identifying the verbs and corresponding subjects across long sentences with mult
 LLM performed well, as it identified patterns in data never seen before without having to parse.
 The results suggest that the LLM is not overfitted.
 
-Note that the Parser could not parse some sentences in the first (19.8%) and second (1.60%) test
+Note that the Parser could not parse some sentences in the first (20.6%) and second (1.60%) test
 suites. The number is much higher in the first suite likely because many of the test sentences were
 written by people learning English. These sentences might have grammatical structure errors. Also,
 Many of the sentences in the suite were randomly generated. These sentences, though structurally
@@ -136,4 +137,3 @@ sound, might contain words that do not make sense together.
 [2] Vera, Honor Edgeworth; Or, Ottawa’s Present Tense. Project Gutenberg eBook.
 
 [3] OpenAI, “Chatgpt,” 2025. GPT-5.1 model used for research assistance.
-
